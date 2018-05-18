@@ -35,6 +35,8 @@ def fit(images, peaks, psfs, bg_rms,
     blend, rej = initialize(images, peaks,
                             diff_kernels, bg_rms)
     blend.fit(iters, e_rel=e_rel)
+    blend.resize_sources()
+    blend.recenter_sources()
     return blend, rej
 
 
