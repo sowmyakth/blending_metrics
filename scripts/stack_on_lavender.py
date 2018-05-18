@@ -136,15 +136,18 @@ def scarlet_stack_true_cent(data, num, path):
                     protocol=pickle.HIGHEST_PROTOCOL)
 
 
-def get_stack_peaks(cat, peaks, tolerance=15):
+def get_stack_peaks(cat, peaks, tolerance=5):
     """Returns centers of stack detected objects on blend image"""
     z2 = np.zeros((len(cat), 2))
-    z2[:, 0] = cat['base_NaiveCentroid_y']
-    z2[:, 1] = cat['base_NaiveCentroid_x']
+    z2[:, 0] = cat['base_SdssCentroid_y']
+    z2[:, 1] = cat['base_SdssCentroid_x']
     indxs, cent = [], []
     z_tree = spatial.KDTree(peaks)
     match = z_tree.query(z2, distance_upper_bound=tolerance)
     indxs = match[1]
+    for i in range(len(indxs)):
+        if np.isnan(match[0][i]):
+            indxs[i] = 2 + i
     cent = z2
     return indxs, cent
 
@@ -162,7 +165,7 @@ def check_detection_scarlet(data, num):
                                       data['psfs'],
                                       data['sky_counts']**0.5)
         sel = np.delete(sel, rej_tru)
-        mask = [np.sum(bl.get_model(i)) != 0 for i in range(len(bl.sources))]
+        mask = [not np.isclose(np.sum(bl.get_model(i)), 0) for i in range(len(bl.sources))]
         cat = cat[sel][mask]
         diff_im = data['blend'][num, :, :, 4] - bl.get_model()[4].T
         v = diff_im + data['sky_counts'][4]
@@ -219,27 +222,36 @@ def run_analysis(data, num, path):
     scarlet_stack_stck_cent(data, num, ind_path)
 
 
-def main(Args):
-    np.random.seed(0)
-    data = get_data(MAIN_PATH, Args)
-    pool = multiprocessing.Pool(Args.num)
-    for i in range(Args.num):
-        # run_analysis(data, i, DATA_PATH)
-        if i%32 == 0:
-            time.sleep(60)
+def run_batch(data, num):
+    print("running batch", num / 30)
+    pool = multiprocessing.Pool(30)
+    for i in range(num, num + 30):
         pool.apply_async(run_analysis, [data, i, DATA_PATH])
     pool.close()
     pool.join()
+
+
+def main(Args):
+    start = time.time()
+    print ("starting at ", time.time())
+    np.random.seed(0)
+    data = get_data(MAIN_PATH, Args)
+    for i in range(0, int(Args.num / 30) * 30, 30):
+        # run_analysis(data, i, DATA_PATH)
+        run_batch(data, i)
+        time.sleep(80)
     filename = os.path.join(DATA_PATH, "data.pickle")
     with open(filename, 'wb') as handle:
         pickle.dump(data, handle,
                     protocol=pickle.HIGHEST_PROTOCOL)
+    end = time.time()
+    print("time taken: ", end - start)
 
 
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser()
-    parser.add_argument('--num', default=100, type=int,
+    parser.add_argument('--num', default=120, type=int,
                         help="# of distinct galaxy pairs [Default:100]")
     args = parser.parse_args()
     main(args)

@@ -1,8 +1,4 @@
 """Runns stack on input WLDEB fits image"""
-import pickle
-import numpy as np
-import fitsio
-import sys
 import lsst.afw.table
 import lsst.afw.image
 import lsst.afw.math
@@ -12,7 +8,7 @@ import lsst.meas.deblender
 import lsst.meas.extensions.shapeHSM
 
 
-def process(image_array, variance_array, psf_array, output_path=None,
+def process(image_array, variance_array, psf_array,
             min_pix=1, bkg_bin_size=32, thr_value=5):
     """
     Function to setup the DM stack
@@ -29,7 +25,7 @@ def process(image_array, variance_array, psf_array, output_path=None,
     """
     image = lsst.afw.image.ImageF(image_array)
     # Generate the variance image
-    variance = lsst.afw.image.ImageF(variance_array) 
+    variance = lsst.afw.image.ImageF(variance_array)
     # Generate a masked image, i.e., an image+mask+variance image (with mask=None)
     masked_image = lsst.afw.image.MaskedImageF(image, None, variance)
     psf_im = lsst.afw.image.ImageD(psf_array)  # Convert to stack's format
@@ -80,6 +76,7 @@ def get_good_childrn(image_array, variance_array, psf_array, output_path=None,
     else:
         mask &= cat['ext_shapeHSM_HsmShapeRegauss_flag'] == False
     cat_chldrn = cat[mask]
+    cat_chldrn = cat_chldrn.copy(deep=True)
     if output_path:
         cat_chldrn.writeFits(output_path)
         print ("stack output saved at", output_path)
