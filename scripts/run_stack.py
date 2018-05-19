@@ -66,8 +66,7 @@ def process(image_array, variance_array, psf_array,
 
 def get_good_childrn(image_array, variance_array, psf_array, output_path=None,
                      min_pix=1, bkg_bin_size=32, thr_value=5, detect=False):
-    cat = process(image_array, variance_array, psf_array,
-                  output_path=output_path, min_pix=min_pix,
+    cat = process(image_array, variance_array, psf_array, min_pix=min_pix,
                   bkg_bin_size=bkg_bin_size, thr_value=thr_value)
     mask = cat['deblend_nChild'] == 0
     # mask &= cat['base_LocalBackground_flag_badCentroid'] == False
