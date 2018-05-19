@@ -47,13 +47,14 @@ def get_true_peaks(input_cat1, input_cat2):
 def get_blends(path, num, i_mag=24):
     """Returns catalogs with blend information"""
     input_cat, blend_cat = load_catalogs(path)
+    tot_num = len(blend_cat)
     # Pick pairs only from training set where atleast one is observable
-    cond1 = (input_cat['i_ab'][:49000] < 24) & (input_cat['i_ab'][49000:] < 25.2)
+    cond1 = (input_cat['i_ab'][:tot_num] <= 25.3) & (input_cat['i_ab'][tot_num:] < 27)
     cond2 = (blend_cat['is_validation'] == 0)
     q, = np.where(cond1 & cond2)
-    choice = np.random.choice(q, size=num)
-    in_cat1 = input_cat[:49000][choice]
-    in_cat2 = input_cat[49000:][choice]
+    choice = np.random.choice(q, size=num, replace=False)
+    in_cat1 = input_cat[:tot_num][choice]
+    in_cat2 = input_cat[tot_num:][choice]
     return in_cat1, in_cat2, blend_cat[choice]
 
 
@@ -227,6 +228,7 @@ def run_batch(data, num):
     pool = multiprocessing.Pool(30)
     for i in range(num, num + 30):
         pool.apply_async(run_analysis, [data, i, DATA_PATH])
+        # run_analysis(data, i, DATA_PATH)
     pool.close()
     pool.join()
 
@@ -239,7 +241,7 @@ def main(Args):
     for i in range(0, int(Args.num / 30) * 30, 30):
         # run_analysis(data, i, DATA_PATH)
         run_batch(data, i)
-        time.sleep(80)
+        time.sleep(60)
     filename = os.path.join(DATA_PATH, "data.pickle")
     with open(filename, 'wb') as handle:
         pickle.dump(data, handle,
@@ -251,7 +253,7 @@ def main(Args):
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser()
-    parser.add_argument('--num', default=120, type=int,
+    parser.add_argument('--num', default=49000, type=int,
                         help="# of distinct galaxy pairs [Default:100]")
     args = parser.parse_args()
     main(args)
