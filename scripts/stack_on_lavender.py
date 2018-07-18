@@ -52,10 +52,10 @@ def get_blends(path, num, i_mag=24):
     cond1 = (input_cat['i_ab'][:tot_num] <= 25.3) & (input_cat['i_ab'][tot_num:] < 27)
     cond2 = (blend_cat['is_validation'] == 0)
     q, = np.where(cond1 & cond2)
-    choice = np.random.choice(q, size=num, replace=False)
-    in_cat1 = input_cat[:tot_num][choice]
-    in_cat2 = input_cat[tot_num:][choice]
-    return in_cat1, in_cat2, blend_cat[choice]
+    #choice = np.random.choice(q, size=num, replace=False)
+    in_cat1 = input_cat[:tot_num][:num]
+    in_cat2 = input_cat[tot_num:][:num]
+    return in_cat1, in_cat2, blend_cat[:num]
 
 
 def get_images(path, blend_cat):
@@ -69,7 +69,7 @@ def get_images(path, blend_cat):
     return blend_images.T, true1.T, true2.T
 
 
-def get_data(path, Args):
+def get_data(path, num):
     """Loadlavender images of blend and isolated galaxies and saves to a dict
     Keyword Arguments
         path -- path to file with images
@@ -80,7 +80,7 @@ def get_data(path, Args):
     psfs, sky_counts = get_psf_sky(path)
     # in_cat has true center values for scarlet
     # blend_cat has nn_id: index of images in lavenddr
-    in_cat1, in_cat2, blend_cat = get_blends(path, Args.num)
+    in_cat1, in_cat2, blend_cat = get_blends(path, num)
     blend_images, true1, true2 = get_images(path, blend_cat)
     # import ipdb;ipdb.set_trace()
     peaks = get_true_peaks(in_cat1, in_cat2)
@@ -215,6 +215,7 @@ def sort_by_dist(point, xs, ys):
 
 
 def run_analysis(data, num, path):
+    print ("running Analysis", num)
     ind_path = os.path.join(path, "blend_" + str(num))
     if os.path.isdir(ind_path) is False:
         subprocess.call(["mkdir", ind_path])
@@ -237,7 +238,7 @@ def main(Args):
     start = time.time()
     print ("starting at ", time.time())
     np.random.seed(0)
-    data = get_data(MAIN_PATH, Args)
+    data = get_data(MAIN_PATH, Args.num)
     for i in range(0, int(Args.num / 30) * 30, 30):
         # run_analysis(data, i, DATA_PATH)
         run_batch(data, i)
