@@ -69,7 +69,7 @@ def get_images(path, blend_cat):
     return blend_images.T, true1.T, true2.T
 
 
-def get_data(path, num):
+def get_data(path, num, bands=('u', 'g', 'r', 'i', 'z', 'y')):
     """Loadlavender images of blend and isolated galaxies and saves to a dict
     Keyword Arguments
         path -- path to file with images
@@ -77,7 +77,7 @@ def get_data(path, num):
     Returns
         data -- dict with data for analysis of num blends
     """
-    psfs, sky_counts = get_psf_sky(path)
+    psfs, sky_counts = get_psf_sky(path, bands=bands)
     # in_cat has true center values for scarlet
     # blend_cat has nn_id: index of images in lavenddr
     in_cat1, in_cat2, blend_cat = get_blends(path, num)
@@ -94,26 +94,26 @@ def get_data(path, num):
     return data
 
 
-def run_stack_wld(data, num, path):
+def run_stack_wld(data, num, path, i_index):
     """Runs stack on blend and isolated objects"""
-    var = data['blend'][num, :, :, 4] + data['sky_counts'][4]
-    run_stack.get_good_childrn(data['blend'][num, :, :, 4].astype(np.float32),
-                               psf_array=data['psfs'][4],
+    var = data['blend'][num, :, :, i_index] + data['sky_counts'][i_index]
+    run_stack.get_good_childrn(data['blend'][num, :, :, i_index].astype(np.float32),
+                               psf_array=data['psfs'][i_index],
                                variance_array=var.astype(np.float32),
                                output_path=path + "/blnd_stck.fits")
-    var = data['true1'][num, :, :, 0] + data['sky_counts'][4]
+    var = data['true1'][num, :, :, 0] + data['sky_counts'][i_index]
     run_stack.get_good_childrn(data['true1'][num, :, :, 0].astype(np.float32),
-                               psf_array=data['psfs'][4],
+                               psf_array=data['psfs'][i_index],
                                variance_array=var.astype(np.float32),
                                output_path=path + "/ind_1_stck.fits")
-    var = data['true2'][num, :, :, 0] + data['sky_counts'][4]
+    var = data['true2'][num, :, :, 0] + data['sky_counts'][i_index]
     run_stack.get_good_childrn(data['true2'][num, :, :, 0].astype(np.float32),
-                               psf_array=data['psfs'][4],
+                               psf_array=data['psfs'][i_index],
                                variance_array=var.astype(np.float32),
                                output_path=path + "/ind_2_stck.fits")
 
 
-def scarlet_stack_true_cent(data, num, path):
+def scarlet_stack_true_cent(data, num, path, i_index):
     """Run scarlet with true centers"""
     # Transpose as scarlet needs in format (bands, nx, ny)
     blend, rej_tru = run_scarlet.fit(data['blend'][num].T,
@@ -126,9 +126,9 @@ def scarlet_stack_true_cent(data, num, path):
     print ("Scarlet rejected object:", rej_tru)
     for i, indx in enumerate(deb_indx):
         fname = path + "/deb_%i_tru.fits"%indx
-        var = deb_img_tru[i] + data['sky_counts'][4]
+        var = deb_img_tru[i] + data['sky_counts'][i_index]
         run_stack.get_good_childrn(deb_img_tru[i].astype(np.float32),
-                                   psf_array=data['psfs'][4],
+                                   psf_array=data['psfs'][i_index],
                                    variance_array=var.astype(np.float32),
                                    output_path=fname)
     fname = path + "/deb_tru_images"
@@ -153,7 +153,7 @@ def get_stack_peaks(cat, peaks, tolerance=5):
     return indxs, cent
 
 
-def check_detection_scarlet(data, num):
+def check_detection_scarlet(data, num, i_index):
     fname = os.path.join(DATA_PATH, 'blend_{0}/blnd_stck.fits'.format(num))
     cat = Table.read(fname, hdu=1)
     count = 0
@@ -168,10 +168,10 @@ def check_detection_scarlet(data, num):
         sel = np.delete(sel, rej_tru)
         mask = [not np.isclose(np.sum(bl.get_model(i)), 0) for i in range(len(bl.sources))]
         cat = cat[sel][mask]
-        diff_im = data['blend'][num, :, :, 4] - bl.get_model()[4].T
-        v = diff_im + data['sky_counts'][4]
+        diff_im = data['blend'][num, :, :, i_index] - bl.get_model()[i_index].T
+        v = diff_im + data['sky_counts'][i_index]
         cat2 = run_stack.get_good_childrn(diff_im.astype(np.float32),
-                                          psf_array=data['psfs'][4],
+                                          psf_array=data['psfs'][i_index],
                                           variance_array=v.astype(np.float32),
                                           detect=True)
         num_diff = len(cat2)
@@ -182,10 +182,10 @@ def check_detection_scarlet(data, num):
     return cat
 
 
-def scarlet_stack_stck_cent(data, num, path):
+def scarlet_stack_stck_cent(data, num, path, i_index):
     """Run scarlet with centers from dm stack"""
     # Transpose as scarlet needs in format (bands, nx, ny)
-    cat = check_detection_scarlet(data, num)
+    cat = check_detection_scarlet(data, num, i_index)
     indxs, peaks = get_stack_peaks(cat, data['peaks'][num])
     blend, rej_tru = run_scarlet.fit(data['blend'][num].T,
                                      peaks,
@@ -196,9 +196,9 @@ def scarlet_stack_stck_cent(data, num, path):
     print ("Scarlet rejected object:", rej_tru)
     for i, indx in enumerate(deb_indx):
         fname = path + "/deb_%i_stck.fits"%indx
-        var = deb_img_stck[i] + data['sky_counts'][4]
+        var = deb_img_stck[i] + data['sky_counts'][i_index]
         run_stack.get_good_childrn(deb_img_stck[i].astype(np.float32),
-                                   psf_array=data['psfs'][4],
+                                   psf_array=data['psfs'][i_index],
                                    variance_array=var.astype(np.float32),
                                    output_path=fname)
     fname = path + "/deb_stck_images"
@@ -214,35 +214,37 @@ def sort_by_dist(point, xs, ys):
     return int(new_arr[0])
 
 
-def run_analysis(data, num, path):
+def run_analysis(data, num, path, i_index):
     print ("running Analysis", num)
     ind_path = os.path.join(path, "blend_" + str(num))
     if os.path.isdir(ind_path) is False:
         subprocess.call(["mkdir", ind_path])
-    run_stack_wld(data, num, ind_path)
-    scarlet_stack_true_cent(data, num, ind_path)
-    scarlet_stack_stck_cent(data, num, ind_path)
+    run_stack_wld(data, num, ind_path, i_index)
+    scarlet_stack_true_cent(data, num, ind_path, i_index)
+    scarlet_stack_stck_cent(data, num, ind_path, i_index)
 
 
-def run_batch(data, num):
+def run_batch(data, num, i_index):
     print("running batch", num / 30)
     pool = multiprocessing.Pool(30)
     for i in range(num, num + 30):
-        pool.apply_async(run_analysis, [data, i, DATA_PATH])
+        pool.apply_async(run_analysis, [data, i, DATA_PATH, i_index])
         # run_analysis(data, i, DATA_PATH)
     pool.close()
     pool.join()
 
 
 def main(Args):
+    bands = ('g', 'r', 'i')
+    i_index = 2
     start = time.time()
     print ("starting at ", time.time())
     np.random.seed(0)
-    data = get_data(MAIN_PATH, Args.num)
+    data = get_data(MAIN_PATH, Args.num, bands)
     for i in range(0, int(Args.num / 30) * 30, 30):
-        # run_analysis(data, i, DATA_PATH)
-        run_batch(data, i)
-        time.sleep(60)
+        run_analysis(data, i, DATA_PATH, i_index)
+        #run_batch(data, i, i_index)
+        time.sleep(45)
     filename = os.path.join(DATA_PATH, "data.pickle")
     with open(filename, 'wb') as handle:
         pickle.dump(data, handle,
